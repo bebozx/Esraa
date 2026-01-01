@@ -14,7 +14,7 @@ app.post('/api/chat', async (req, res) => {
             method: "POST",
             headers: {
                 // تأكد من وضع مفتاح الـ API الخاص بك هنا
-                "Authorization": `Bearer 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`,
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -52,4 +52,5 @@ app.listen(PORT, () => {
        Made for: Esraa Bahaa
     =============================================
     `);
+
 });
