@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocal Chat Tutor - Esraa Bahaa</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f2f5; flex-direction: column; }
+        .card { background: white; padding: 35px; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); width: 90%; max-width: 450px; text-align: center; }
+        #btn { 
+            width: 90px; height: 90px; border-radius: 50%; border: none; 
+            background: #007bff; color: white; font-weight: bold; cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,123,255,0.3); transition: 0.3s;
+            user-select: none; margin-bottom: 25px; outline: none;
+        }
+        #btn:active { transform: scale(0.85); background: #0056b3; }
+        .word-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 20px 0; min-height: 60px; }
+        .word-item { display: flex; flex-direction: column; align-items: center; }
+        .word-text { font-size: 1.2rem; color: #333; font-weight: 500; }
+        .accuracy-pct { font-size: 0.75rem; font-weight: bold; margin-top: 3px; padding: 2px 6px; border-radius: 5px; }
+        .high { color: #28a745; background: #e8f5e9; } 
+        .mid { color: #f39c12; background: #fff3e0; }
+        .low { color: #e74c3c; background: #fdedec; }
+        .ai-bubble { background: #f8f9fa; border-radius: 15px; padding: 15px; font-style: italic; color: #555; border: 1px solid #eee; margin-top: 10px; min-height: 50px; }
+        .dedication { color: #555; font-weight: 600; margin-top: 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Vocal Chat</h2>
+    <p style="font-size: 0.85rem; color: #888;">Hold to talk - I'll remember everything!</p>
+    
+    <button id="btn">TALK</button>
+    <div id="status" style="font-size: 0.8rem; color: #007bff; height: 15px; margin-bottom: 10px;"></div>
+    
+    <div class="word-container" id="displayArea"></div>
+    <div id="aiReply" class="ai-bubble">Let's chat! I'm listening...</div>
+
+    <div class="dedication">Made for Esraa Bahaa</div>
+</div>
+
+<script>
+    const btn = document.getElementById('btn');
+    const display = document.getElementById('displayArea');
+    const aiDisplay = document.getElementById('aiReply');
+    const status = document.getElementById('status');
+
+    let chatHistory = []; // الذاكرة
+    let isProcessing = false; // قفل أمان لمنع التكرار
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+    recognition.continuous = false; // خليناها false عشان نضمن إنها ما تسرحش مع نفسها
+    recognition.interimResults = false;
+
+    btn.onmousedown = btn.ontouchstart = (e) => {
+        e.preventDefault();
+        if (isProcessing) return;
+        
+        window.speechSynthesis.cancel(); // وقف أي كلام قديم فوراً
+        display.innerHTML = "";
+        status.innerText = "RECORDING...";
+        recognition.start();
+    };
+
+    btn.onmouseup = btn.ontouchend = () => {
+        recognition.stop();
+        status.innerText = "";
+    };
+
+    recognition.onresult = (event) => {
+        const result = event.results[0][0];
+        const text = result.transcript.trim();
+        const pct = Math.round(result.confidence * 100);
+        
+        // عرض الكلمة والنسبة
+        let cls = pct > 90 ? "high" : (pct > 80 ? "mid" : "low");
+        display.innerHTML = `
+            <div class="word-item">
+                <span class="word-text">${text}</span>
+                <span class="accuracy-pct ${cls}">${pct}%</span>
+            </div>`;
+
+        if (text && !isProcessing) {
+            getAI(text);
+        }
+    };
+
+    async function getAI(userText) {
+        isProcessing = true;
+        aiDisplay.innerText = "Thinking...";
+        
+        chatHistory.push({ role: "user", content: userText });
+
+        try {
+            const r = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ messages: chatHistory })
+            });
+            const d = await r.json();
+            const aiReply = d.reply;
+
+            chatHistory.push({ role: "assistant", content: aiReply });
+            
+            // لو التاريخ كبر أوي، نمسح أقدم جملتين عشان ما نهنجش (Memory Management)
+            if (chatHistory.length > 10) chatHistory.splice(0, 2);
+
+            aiDisplay.innerText = "Friend: " + aiReply;
+            
+            const u = new SpeechSynthesisUtterance(aiReply);
+            u.lang = 'en-US';
+            u.onend = () => { isProcessing = false; }; // افتح القفل لما تخلص كلام
+            window.speechSynthesis.speak(u);
+
+        } catch (e) { 
+            aiDisplay.innerText = "Connection lost."; 
+            isProcessing = false;
+        }
+    }
+</script>
+</body>
+</html>
