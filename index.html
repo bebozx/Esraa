@@ -45,6 +45,7 @@
     const display = document.getElementById('displayArea');
     const aiDisplay = document.getElementById('aiReply');
     const status = document.getElementById('status');
+    const response = await fetch('/api/server'); // تأكد إن المسار بيبدأ بـ /api/
 
     let chatHistory = []; // الذاكرة
     let isProcessing = false; // قفل أمان لمنع التكرار
@@ -121,4 +122,5 @@
     }
 </script>
 </body>
+
 </html>
